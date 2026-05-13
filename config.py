@@ -17,10 +17,13 @@ CONFIG = {
     "backbone":        "mobilenetv2",  # choices: mobilenetv2 | resnet50
 
     # ── Training ───────────────────────────────────────────────────────────
-    "epochs":          20,
-    "batch_size":      32,
-    "learning_rate":   1e-4,
-    "val_split":       0.2,         # fraction of train set held out for val
+    "epochs":                  20,
+    "batch_size":              32,
+    "learning_rate":           1e-4,
+    "val_split":               0.2,   # fraction of train set held out for val
+    "use_subset":              False,
+    "subset_samples_per_class":2000,
+    "random_seed":             42,
 
     # ── Inference ──────────────────────────────────────────────────────────
     "confidence_threshold": 0.6,    # below this → show "Uncertain" warning

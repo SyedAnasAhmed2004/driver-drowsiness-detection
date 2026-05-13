@@ -9,13 +9,14 @@ import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
 from sklearn.metrics import classification_report, confusion_matrix
+from collections import defaultdict
 
 import torch
 import torch.nn as nn
 import torch.optim as optim
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 from torchvision import datasets, transforms, models
-from torch.utils.data import DataLoader, random_split
+from torch.utils.data import DataLoader, random_split, Subset
 
 from config import CONFIG
 from model import DistractionDetector
@@ -44,23 +45,53 @@ def get_transforms():
     return train_transform, val_transform
 
 
+def _get_base_dataset(transform):
+    return datasets.ImageFolder(
+        root=os.path.join(CONFIG["data_dir"], "train"),
+        transform=transform
+    )
+
+
+def _sample_balanced_subset(dataset, samples_per_class, seed=42):
+    class_to_indices = defaultdict(list)
+    for idx, (_, label) in enumerate(dataset.samples):
+        class_to_indices[label].append(idx)
+
+    rng = np.random.RandomState(seed)
+    selected_indices = []
+    for label, indices in class_to_indices.items():
+        if len(indices) < samples_per_class:
+            raise ValueError(
+                f"Class {dataset.classes[label]} has only {len(indices)} samples, "
+                f"cannot select {samples_per_class} without replacement."
+            )
+        selected_indices.extend(rng.choice(indices, samples_per_class, replace=False).tolist())
+
+    rng.shuffle(selected_indices)
+    return Subset(dataset, selected_indices)
+
+
 # ─────────────────────────────────────────────
 # 2. LOAD DATASET
 # ─────────────────────────────────────────────
-def load_data():
+def load_data(use_subset: bool = False, samples_per_class: int = None, seed: int = None):
     train_transform, val_transform = get_transforms()
+    seed = seed if seed is not None else CONFIG["random_seed"]
+    samples_per_class = samples_per_class if samples_per_class is not None else CONFIG["subset_samples_per_class"]
 
-    full_dataset = datasets.ImageFolder(
-        root=os.path.join(CONFIG["data_dir"], "train"),
-        transform=train_transform
-    )
+    full_dataset = _get_base_dataset(train_transform)
+    if use_subset:
+        full_dataset = _sample_balanced_subset(full_dataset, samples_per_class, seed)
 
     val_size = int(len(full_dataset) * CONFIG["val_split"])
     train_size = len(full_dataset) - val_size
-    train_dataset, val_dataset = random_split(full_dataset, [train_size, val_size])
+    train_dataset, val_dataset = random_split(
+        full_dataset, [train_size, val_size], generator=torch.Generator().manual_seed(seed)
+    )
 
     # Apply val transform to validation subset
-    val_dataset.dataset.transform = val_transform
+    base_dataset = getattr(val_dataset.dataset, "dataset", val_dataset.dataset)
+    base_dataset.transform = val_transform
 
     train_loader = DataLoader(
         train_dataset,
@@ -77,9 +108,13 @@ def load_data():
         pin_memory=False
     )
 
-    print(f"[INFO] Classes: {full_dataset.classes}")
+    class_names = getattr(full_dataset, "classes", None)
+    if class_names is None:
+        class_names = full_dataset.dataset.classes
+
+    print(f"[INFO] Classes: {class_names}")
     print(f"[INFO] Train samples: {train_size} | Val samples: {val_size}")
-    return train_loader, val_loader, full_dataset.classes
+    return train_loader, val_loader, class_names
 
 
 # ─────────────────────────────────────────────
@@ -142,7 +177,11 @@ def main():
     os.makedirs(CONFIG["checkpoint_dir"], exist_ok=True)
     os.makedirs(CONFIG["results_dir"], exist_ok=True)
 
-    train_loader, val_loader, class_names = load_data()
+    train_loader, val_loader, class_names = load_data(
+        use_subset=CONFIG["use_subset"],
+        samples_per_class=CONFIG["subset_samples_per_class"],
+        seed=CONFIG["random_seed"]
+    )
 
     model = DistractionDetector(num_classes=CONFIG["num_classes"]).to(device)
     print(f"[INFO] Model: {model.__class__.__name__} loaded")

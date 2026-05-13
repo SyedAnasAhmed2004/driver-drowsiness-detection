@@ -64,6 +64,18 @@ data/
 
 ---
 
+### 3 — Google Colab
+
+A Colab-ready notebook has been added as `colab_train.ipynb`.
+It includes dependency installation, Kaggle API setup, dataset download, balanced 20,000-image subsampling, training, and Google Drive checkpoint saving.
+
+To use it:
+1. Upload `colab_train.ipynb` and this repository to Colab or mount your Google Drive.
+2. Upload `kaggle.json` to Colab or place it in `MyDrive/kaggle.json`.
+3. Run all cells in order.
+
+---
+
 ## Training
 
 ```bash
