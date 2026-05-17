@@ -4,10 +4,6 @@ Utility functions: saving/loading checkpoints, plotting, evaluation helpers.
 
 import os
 import numpy as np
-import matplotlib
-matplotlib.use("Agg")
-import matplotlib.pyplot as plt
-import seaborn as sns
 import torch
 
 
@@ -40,6 +36,9 @@ def load_checkpoint(model, path: str, optimizer=None, device="cpu"):
 # ─────────────────────────────────────────────
 
 def plot_training_history(history: dict, save_path: str = None):
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
     fig, axes = plt.subplots(1, 2, figsize=(14, 5))
     fig.suptitle("Training History", fontsize=14, fontweight="bold")
 
@@ -74,6 +73,10 @@ def plot_training_history(history: dict, save_path: str = None):
 # ─────────────────────────────────────────────
 
 def plot_confusion_matrix(true_labels, pred_labels, class_names, save_path: str = None):
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    import seaborn as sns
     from sklearn.metrics import confusion_matrix
     cm = confusion_matrix(true_labels, pred_labels)
     cm_norm = cm.astype(float) / cm.sum(axis=1, keepdims=True)
